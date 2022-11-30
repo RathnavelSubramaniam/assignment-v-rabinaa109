@@ -1,0 +1,155 @@
+---
+title: "Assignment 3"
+author: "Sahaya Rabina A"
+date: "2022-09-26"
+output: html_document
+---
+
+## Import Library
+
+```{r}
+library(ISLR)
+```
+
+##1. In this problem, you will develop a model to predict whether a given car gets high or low gas mileage based on the Auto data set.
+
+### a) Create a binary variable, mpg01, that contains a 1 if mpg contains a value above its median, and a 0 if mpg contains a value below its median. You can compute the median using the median() function. Note you may find it helpful to use the data.frame() function to create a single data set containing both mpg01 and the other Auto variables.
+
+```{r}
+summary(Auto)
+```
+
+```{r}
+attach(Auto)
+```
+
+```{r}
+mpg01 <- ifelse( mpg > median(mpg), yes = 1, no = 0)
+Auto <- data.frame(Auto, mpg01)
+```
+
+### b) Explore the data graphically in order to investigate the association between mpg01 and the other features. Which of the other features seem most likely to be useful in predicting mpg01? Scatterplots and boxplots may be useful tools to answer this question. Describe your findings.
+
+```{r}
+cor(Auto[,-9])
+```
+
+```{r}
+par(mfrow=c(1,5))
+boxplot(weight ~ mpg01, data = Auto, main = "Weight", 
+        xlab = "mpg01", ylab = "Weight",
+        col = c("blue", "red"))
+boxplot(cylinders ~ mpg01, data = Auto, main = "Cylinders", 
+        xlab = "mpg01", ylab = "Cylinders",
+        col = c("blue", "red"))
+boxplot(acceleration ~ mpg01, data = Auto, main = "Acceleration", 
+        xlab = "mpg01", ylab = "Acceleration",
+        col = c("blue", "red"))
+boxplot(displacement ~ mpg01, data = Auto, main = "Displacement", 
+        xlab = "mpg01", ylab = "Displacement",
+        col = c("blue", "red"))
+boxplot(horsepower ~ mpg01, data = Auto, main = "Horsepower", 
+        xlab = "mpg01", ylab = "Horsepower",
+        col = c("blue", "red"))
+```
+
+    Features like cylinders, weight, displacement, horsepower seem most likely to be useful in predicting mpg01 
+    
+### c) Split the data into a training set and a test set
+
+```{r}
+#normalize our features
+Auto <- data.frame(mpg01, apply(cbind(cylinders, weight, displacement, horsepower, acceleration), 
+                                2, scale), year)
+```
+
+```{r}
+set.seed(1)
+# split the data set into observations with even and odd years using %% operator
+train <-  (year %% 2 == 0) # if the year is even (%%)
+test <-  !train
+Auto.train <-  Auto[train,]
+Auto.test <-  Auto[test,]
+mpg01.test <-  mpg01[test]
+```
+
+    Training data has 210 observations and Test data has 182 observations.
+
+### d) Perform LDA on the training data in order to predict mpg01 using the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+
+```{r}
+require(MASS)
+fmla <- as.formula('mpg01 ~ displacement + horsepower + weight + year + cylinders')
+lda_model <- lda(fmla, data = Auto.train)
+
+pred <- predict(lda_model, Auto.test)
+table(pred$class, Auto.test$mpg01)
+```
+
+```{r}
+round(mean(pred$class != Auto.test$mpg01),3)
+```
+
+    The LDA model does well. 
+    The prediction error is 0.104.
+
+### e) Perform QDA on the training data in order to predict mpg01 using the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+
+```{r}
+qda_model <- qda(fmla, data = Auto.train)
+
+pred <- predict(qda_model, Auto.test)
+table(pred$class, Auto.test$mpg01)
+```
+
+```{r}
+round(mean(pred$class != Auto.test$mpg01),3)
+```
+
+    The QDA model does well.
+    The prediction error is 0.126
+
+### f) Perform logistic regression on the training data in order to predict mpg01 using the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+
+```{r}
+log_reg <- glm(fmla, data = Auto.train, family = binomial)
+
+pred <- predict(log_reg, Auto.test, type = 'response')
+pred_values <- round(pred)
+table(pred_values, Auto.test$mpg01)
+```
+
+```{r}
+round(mean(pred_values != Auto.test$mpg01),3)
+```
+
+    The logistic regression model performance is not as better ad LDA and QDA. 
+    The prediction error is 0.115.
+
+### g) Perform KNN on the training data, with several values of K, in order to predict mpg01. Use only the variables that seemed most associated with mpg01 in (b). What test errors do you obtain? Which value of K seems to perform the best on this data set?
+
+```{r}
+library(class)
+train.X <-  cbind(cylinders, weight, displacement, horsepower)[train,]
+test.X <-  cbind(cylinders, weight, displacement, horsepower)[test,]
+train.mpg01 <-  mpg01[train]
+set.seed(1)
+
+# KNN (k=1)
+knn.pred <-  knn(train.X, test.X, train.mpg01, k = 1)
+round(mean(knn.pred != mpg01.test),3)
+```
+
+```{r}
+# KNN (k=5)
+knn.pred <-  knn(train.X, test.X, train.mpg01, k = 5)
+round(mean(knn.pred != mpg01.test),3)
+```
+
+```{r}
+# KNN (k=10)
+knn.pred <-  knn(train.X, test.X, train.mpg01, k = 10)
+round(mean(knn.pred != mpg01.test),3)
+```
+
+#### ANS: k=1, 11.5% test error rate. k=5, 11.5% test error rate. k=10, 12.6% test error rate. K of 1 and 5 seems to perform the best.
